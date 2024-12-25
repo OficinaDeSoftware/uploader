@@ -40,13 +40,13 @@ public class ImageService {
         this.imageDTOMapper = imageDTOMapper;
     }
 
-    private ImageModel uploadFile( File file, String fileName ) throws IOException, RuntimeException {
+    private ImageModel uploadFile( File file, String fileName, String contentType ) throws IOException, RuntimeException {
 
         log.info("uploadFile [FILE_NAME] {}", fileName);
 
         BlobId blobId = BlobId.of(firebaseBucket, fileName);
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("media").build();
-        InputStream inputStream = ImageService.class.getClassLoader().getResourceAsStream(firebasePrivateKeyPath); // change the file name with your one
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType( contentType ).build();
+        InputStream inputStream = ImageService.class.getClassLoader().getResourceAsStream(firebasePrivateKeyPath);
 
         if( inputStream == null ) {
             log.error("InputStream is null, credentials not found");
@@ -96,9 +96,11 @@ public class ImageService {
 
         try {
 
+            final String contentType = multipartFile.getContentType();
+
             File file = this.convertToFile( multipartFile, fileName );
 
-            ImageModel imageModel = this.uploadFile( file, fileName );
+            ImageModel imageModel = this.uploadFile( file, fileName, contentType );
 
             file.delete();
 
