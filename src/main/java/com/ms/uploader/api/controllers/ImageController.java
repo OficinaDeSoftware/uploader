@@ -48,7 +48,7 @@ public class ImageController {
     )
 
     @PostMapping
-    public ImageDTO upload( @RequestParam("file") MultipartFile multipartFile ) {
-        return imageService.upload(multipartFile);
+    public ImageDTO upload( @RequestParam("file") MultipartFile multipartFile, @RequestParam("identifier") String identifier ) {
+        return imageService.upload(multipartFile, identifier);
     }
 }

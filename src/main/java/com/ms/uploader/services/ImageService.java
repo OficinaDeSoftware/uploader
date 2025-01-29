@@ -4,7 +4,6 @@ import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.*;
 import com.ms.uploader.api.dtos.ImageDTO;
-import com.ms.uploader.exceptions.CredentialsNotFound;
 import com.ms.uploader.api.mappers.ImageDTOMapper;
 import com.ms.uploader.models.ImageModel;
 import lombok.extern.slf4j.Slf4j;
@@ -12,27 +11,28 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Base64;
 import java.util.UUID;
 
 @Slf4j
 @Service
 public class ImageService {
 
-    @Value("${firebase.private.key.path}")
-    private String firebasePrivateKeyPath;
-
     @Value("${firebase.bucket}")
     private String firebaseBucket;
 
     @Value("${firebase.download.url}")
     private String firebaseDownloadUrl;
+
+    @Value("${google.cloud.storage.credentials}")
+    private String googleCredentials;
 
     private final ImageDTOMapper imageDTOMapper;
 
@@ -46,14 +46,10 @@ public class ImageService {
 
         BlobId blobId = BlobId.of(firebaseBucket, fileName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType( contentType ).build();
-        InputStream inputStream = ImageService.class.getClassLoader().getResourceAsStream(firebasePrivateKeyPath);
 
-        if( inputStream == null ) {
-            log.error("InputStream is null, credentials not found");
-            throw new CredentialsNotFound();
-        }
+        byte[] decodedBytes = Base64.getDecoder().decode( googleCredentials ) ;
 
-        Credentials credentials = GoogleCredentials.fromStream(inputStream);
+        Credentials credentials = GoogleCredentials.fromStream( new ByteArrayInputStream( decodedBytes ) );
 
         Storage storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
         storage.create(blobInfo, Files.readAllBytes(file.toPath()));
@@ -80,10 +76,19 @@ public class ImageService {
     }
 
     private String getExtension( String fileName ) {
-        return fileName.substring( fileName.lastIndexOf(".") );
+        return fileName.substring( fileName.lastIndexOf( "." ) );
     }
 
-    public ImageDTO upload( MultipartFile multipartFile ) throws RuntimeException {
+    private String getFileName( String identifier, String fileName ) {
+
+        if( identifier.isEmpty() ) {
+            return UUID.randomUUID().toString().concat( this.getExtension( fileName ) );
+        }
+
+       return identifier.concat( this.getExtension( fileName ) );
+    }
+
+    public ImageDTO upload( MultipartFile multipartFile, String identifier ) throws RuntimeException {
 
         String fileName = multipartFile.getOriginalFilename();
 
@@ -92,7 +97,7 @@ public class ImageService {
             throw new IllegalArgumentException("File name is empty");
         }
 
-        fileName = UUID.randomUUID().toString().concat( this.getExtension(fileName) );
+        fileName = this.getFileName( identifier, fileName );
 
         try {
 
