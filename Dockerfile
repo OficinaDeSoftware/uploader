@@ -8,7 +8,7 @@ RUN mvn clean package -DskipTests && \
 
 FROM eclipse-temurin:17-jre-alpine
 
-EXPOSE 5050
+EXPOSE 5055
 
 COPY --from=build /target/uploader-0.0.1-SNAPSHOT.jar app.jar
 
